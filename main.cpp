@@ -41,24 +41,24 @@ float X[100];
 float Y[100];
 float Z[100];
 int tilt[100];
-float stationary_x;
-float stationary_y;
-float stationary_z;
+float origin_x;
+float origin_y;
+float origin_z;
 int i,j;
 
 void FXOS8700CQ_readRegs(int addr, uint8_t * data, int len);
 void FXOS8700CQ_writeRegs(uint8_t * data, int len);
-void read_vector(void);
-void log_vector(void);
+void read(void);
+void record(void);
 void blink_led1(void);
 void logger(void);
 
 int main() {
+   pc.baud(115200);
+   led1=1;
    thread1.start(callback(&queue1, &EventQueue::dispatch_forever));
    thread2.start(callback(&queue2, &EventQueue::dispatch_forever));
-   led1=1;
    btn.rise(&logger);
-   pc.baud(115200);
 
    // Enable the FXOS8700Q
    FXOS8700CQ_readRegs( FXOS8700Q_CTRL_REG1, &data[1], 1);
@@ -69,17 +69,17 @@ int main() {
    // Get the slave address
    FXOS8700CQ_readRegs(FXOS8700Q_WHOAMI, &who_am_i, 1);
    while (true) {
-       read_vector();
-       stationary_x=t[0];
-       stationary_y=t[1];
-       stationary_z=t[2];
+       read();
+       origin_x=t[0];
+       origin_y=t[1];
+       origin_z=t[2];
    }
 }
 
-void read_vector(){
+void read(){
 
         FXOS8700CQ_readRegs(FXOS8700Q_OUT_X_MSB, res, 6);
-
+    
         acc16 = (res[0] << 6) | (res[1] >> 2);
         if (acc16 > UINT14_MAX/2)
             acc16 -= UINT14_MAX;
@@ -96,55 +96,53 @@ void read_vector(){
         t[2] = ((float)acc16) / 4096.0f;
 }
 
-void log_vector(void){
+void record(void){
     while(i<100){
-        read_vector();
+        read();
         X[i]=t[0];
         Y[i]=t[1];
         Z[i]=t[2];
-        if( Z[i] < stationary_z/sqrt(2)) // record every 45 degrees
+        if( Z[i] < origin_z/sqrt(2)) // record every 45 degrees
             tilt[i] = 1;
-        else
-        {
+        else{
             tilt[i] = 0;
         }
         i++;
         wait(0.1);
     }        
-    for (j = 0; j < i; j++){
+    for (j = 0; j < 100; j++){
         pc.printf("%1.4f\r\n", X[j]);
         wait(0.1);
     }
-    for (j = 0; j < i; j++){
+    for (j = 0; j < 100; j++){
         pc.printf("%1.4f\r\n", Y[j]);
         wait(0.1);
     }
-    for (j = 0; j < i; j++){
+    for (j = 0; j < 100; j++){
         pc.printf("%1.4f\r\n", Z[j]);
         wait(0.1);
     }
-    for(j = 0; j < i; j++){
-           pc.printf("%d\r\n",tilt[j]);
-           wait(0.1);
+    for (j = 0; j < 100; j++){
+        pc.printf("%d\r\n",tilt[j]);
+        wait(0.1);
     }
 }
-
+// timer
 void logger(void){
     debounce.reset();
     debounce.start();
     i = 0;
-    queue2.call(log_vector);   
-// vectorticker.attach(readQueue.event(read_vector), 0.1); 
-    ledticker.attach(queue1.event(&blink_led1), 0.2); 
+    queue2.call(record);   
+    ledticker.attach(queue1.event(&blink_led1),0.5); 
 }
 
 // here is the normal priority thread
 void blink_led1() {
-    if(debounce.read()>10){
-        led1=1; 
+    if(debounce.read()<10){
+        led1 = !led1;
     }
     else{
-        led1 = !led1;
+        led1=1; 
     }
 }
 
