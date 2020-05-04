@@ -53,31 +53,7 @@ void record(void);
 void blink_led1(void);
 void logger(void);
 
-int main() {
-   pc.baud(115200);
-   led1=1;
-   thread1.start(callback(&queue1, &EventQueue::dispatch_forever));
-   thread2.start(callback(&queue2, &EventQueue::dispatch_forever));
-   btn.rise(&logger);
-
-   // Enable the FXOS8700Q
-   FXOS8700CQ_readRegs( FXOS8700Q_CTRL_REG1, &data[1], 1);
-   data[1] |= 0x01;
-   data[0] = FXOS8700Q_CTRL_REG1;
-   FXOS8700CQ_writeRegs(data, 2);
-
-   // Get the slave address
-   FXOS8700CQ_readRegs(FXOS8700Q_WHOAMI, &who_am_i, 1);
-   while (true) {
-       read();
-       origin_x=t[0];
-       origin_y=t[1];
-       origin_z=t[2];
-   }
-}
-
 void read(){
-
         FXOS8700CQ_readRegs(FXOS8700Q_OUT_X_MSB, res, 6);
     
         acc16 = (res[0] << 6) | (res[1] >> 2);
@@ -154,4 +130,27 @@ void FXOS8700CQ_readRegs(int addr, uint8_t * data, int len) {
 
 void FXOS8700CQ_writeRegs(uint8_t * data, int len) {
    i2c.write(m_addr, (char *)data, len);
+}
+
+int main() {
+   led1=1;
+   pc.baud(115200);
+   thread1.start(callback(&queue1, &EventQueue::dispatch_forever));
+   thread2.start(callback(&queue2, &EventQueue::dispatch_forever));
+   btn.rise(&logger);
+
+   // Enable the FXOS8700Q
+   FXOS8700CQ_readRegs( FXOS8700Q_CTRL_REG1, &data[1], 1);
+   data[1] |= 0x01;
+   data[0] = FXOS8700Q_CTRL_REG1;
+   FXOS8700CQ_writeRegs(data, 2);
+
+   // Get the slave address
+   FXOS8700CQ_readRegs(FXOS8700Q_WHOAMI, &who_am_i, 1);
+   while (true) {
+       read();
+       origin_x=t[0];
+       origin_y=t[1];
+       origin_z=t[2];
+   }
 }
